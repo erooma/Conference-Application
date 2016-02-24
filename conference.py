@@ -37,6 +37,7 @@ from models import Session
 from models import SessionForm
 from models import SessionForms
 from models import TeeShirtSize
+from models import TypeOfSession
 
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -62,7 +63,7 @@ DEFAULTS = {
 }
 
 SESSDEFAULTS = {
-    "typeOfSession":["Default", "Type"],
+    "typeOfSession": [ "NOT_SPECIFIED" ],
     "maxRegistered": 0,
     "spotsAvailable": 0,
 }
@@ -118,6 +119,11 @@ SESS_GET_REQUEST = endpoints.ResourceContainer(
 SESS_POST_REQUEST = endpoints.ResourceContainer(
     SessionForm,
     websafeSessionKey=messages.StringField(1),
+)
+
+CREATE_SESS_POST_REQUEST = endpoints.ResourceContainer(
+    SessionForm,
+    websafeConferenceKey=messages.StringField(1),
 )
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -378,6 +384,8 @@ class ConferenceApi(remote.Service):
                     setattr(ss, field.name, str(getattr(sess, field.name)))
                 elif field.name.endswith('Time'):
                     setattr(ss, field.name, str(getattr(sess, field.name)))
+                elif field.name == 'typeOfSession':
+                    setattr(ss, field.name, getattr(TypeOfSession, getattr(sess, field.name)))
                 else:
                     setattr(ss, field.name, getattr(sess, field.name))
             elif field.name == "websafeSessionKey":
@@ -388,7 +396,10 @@ class ConferenceApi(remote.Service):
         return ss
 
 
-    def _createSessionObject(self, request):
+    @endpoints.method(CREATE_SESS_POST_REQUEST, SessionForm,
+            path='createNewSession/{websafeConferenceKey}',
+            http_method='POST', name='createSession')
+    def createSession(self, request):
         """Create or update Session object, returning SessionForm/request."""
         # preload necessary data items
         user = endpoints.get_current_user()
@@ -406,6 +417,7 @@ class ConferenceApi(remote.Service):
         data = {field.name: getattr(request, field.name) for field in request.all_fields()}
         del data['websafeSessionKey']
         del data['websafeCK']
+        del data['websafeConferenceKey']
         
         # add default values for those missing (both data model & outbound 
         # Message)
@@ -420,6 +432,9 @@ class ConferenceApi(remote.Service):
             data['sessionDate'] = datetime.strptime(data['sessionDate'][:10], "%Y-%m-%d").date()
         if data['startTime']:
             data['startTime'] = datetime.strptime(data['startTime'][:5], "%H:%M").time()
+
+        if data['typeOfSession']:
+             data['typeOfSession'] = str(data['typeOfSession'])
 
         # set spotsAvailable to be same as maxRegistered on creation
         if data["maxRegistered"] > 0:
@@ -444,7 +459,8 @@ class ConferenceApi(remote.Service):
         data['key'] = s_key
 
         # create Session & return (modified) SessionForm
-        Session(**data).put()
+        session=Session(**data)
+        session.put()
 
         # add task queue for featuredSpeaker after creating session
         #if data['speakerLast'] and data['speakerFirst']:
@@ -456,7 +472,7 @@ class ConferenceApi(remote.Service):
                 url='/tasks/get_featured_speaker'
             )
 
-        return request
+        return self._copySessionToForm(session, request.websafeCK)
 
 
 
@@ -546,12 +562,12 @@ class ConferenceApi(remote.Service):
         )
 
 
-    @endpoints.method(SessionForm, SessionForm,
-            path='createNewSession',
-            http_method='POST', name='createSession')
-    def createSession(self, request):
-        """Create new session."""
-        return self._createSessionObject(request)
+    # @endpoints.method(CREATE_SESS_POST_REQUEST, SessionForm,
+    #         path='createNewSession/{websafeConferenceKey}',
+    #         http_method='POST', name='createSession')
+    # def createSession(self, request):
+    #     """Create new session."""
+    #     return self._createSessionObject(self, request)
 
 
     @endpoints.method(SESS_GET_REQUEST, SessionForm,

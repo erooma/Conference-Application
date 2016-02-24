@@ -93,7 +93,7 @@ class Session(ndb.Model):
     speakerLast     = ndb.StringProperty()
     speakerFirst    = ndb.StringProperty()
     duration        = ndb.IntegerProperty(repeated=True)
-    typeOfSession   = ndb.StringProperty(repeated=True)
+    typeOfSession   = ndb.StringProperty("TypeOfSession", default='NOT_SPECIFIED')
     location        = ndb.StringProperty()
     sessionDate     = ndb.DateProperty()
     startTime       = ndb.TimeProperty()
@@ -109,7 +109,7 @@ class SessionForm(messages.Message):
     speakerLast     = messages.StringField(4)
     speakerFirst    = messages.StringField(5)
     duration        = messages.IntegerField(6, variant=messages.Variant.INT32, repeated=True)
-    typeOfSession   = messages.StringField(7, repeated=True)
+    typeOfSession   = messages.EnumField('TypeOfSession', 7, default='NOT_SPECIFIED')
     location        = messages.StringField(8)
     sessionDate     = messages.StringField(9)
     startTime       = messages.StringField(10)
@@ -142,13 +142,34 @@ class TeeShirtSize(messages.Enum):
     XXXL_M = 14
     XXXL_W = 15
 
+
+class TypeOfSession(messages.Enum):
+    """TypeOfSession -- session type enumeration value"""
+    NOT_SPECIFIED = 1
+    Lecture = 2
+    Workshop = 3
+    Symposium = 4
+
+
 class ConferenceQueryForm(messages.Message):
     """ConferenceQueryForm -- Conference query inbound form message"""
     field = messages.StringField(1)
     operator = messages.StringField(2)
     value = messages.StringField(3)
 
+
 class ConferenceQueryForms(messages.Message):
     """ConferenceQueryForms -- multiple ConferenceQueryForm inbound form message"""
     filters = messages.MessageField(ConferenceQueryForm, 1, repeated=True)
 
+
+# class Speaker(ndb.Model)
+#     """Speaker -- speaker object"""
+#     speakerLast     = ndb.StringProperty()
+#     speakerFirst    = ndb.StringProperty()
+
+
+# class SpeakerForm(message.Message):
+#     """SpeakerForm -- speaker form"""
+#     speakerLast     = messages.StringField(1)
+#     speakerFirst    = messages.StringField(2)
