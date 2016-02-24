@@ -463,7 +463,7 @@ class ConferenceApi(remote.Service):
         session.put()
 
         # add task queue for featuredSpeaker after creating session
-        #if data['speakerLast'] and data['speakerFirst']:
+        # if data['speakerLast'] and data['speakerFirst']:
         
         taskqueue.add(
                 params={'websafeCK': request.websafeCK,
@@ -530,6 +530,44 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(sess, wsk) for sess in sessions]
         )
 
+    @endpoints.method(CONF_GET_TYPE_REQUEST, SessionForms,
+            path='excludeConferenceSessions/{websafeConferenceKey}/{typeOfSession}',
+            http_method='GET', name='getConferenceSessionsExcludingType')
+    def getConferenceSessionsExcludingType(self, request):
+        """Return conference sessionse excluding a particular type."""
+        # make sure user is authed
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        user_id = getUserId(user)
+
+        # create ancestor query for all key matches for this conference
+        wsk = request.websafeConferenceKey
+        sessionType = request.typeOfSession
+
+        conf = ndb.Key(urlsafe=wsk).get()
+
+        # query all sessions in this conference
+        sessionsAll = Session.query(ancestor=ndb.Key(urlsafe=wsk))
+
+        # use this space to filter all sessions using inequality
+        # eg, all sessions before 19:00
+        # sessionsAll = sessionsAll.filter(Session.startTime < datetime(1970, 1, 1, 19, 0, 0, 0).time())
+
+        # now find the remaining sessions whose type you wish to exclude
+        sessionsLess = sessionsAll.filter(Session.typeOfSession==sessionType)
+
+        # using this information, remove these session from your query
+        sessions = tuple(x for x in sessionsAll if x not in sessionsLess)
+        
+        if not sessions:
+            raise endpoints.NotFoundException(
+                'No sessions found for conference with key: %s excluding type: %s' % wsk % sessionType)
+        # return set of SessionForm objects per Session
+        return SessionForms(
+            items=[self._copySessionToForm(sess, wsk) for sess in sessions]
+        )
+
 
     @endpoints.method(GET_SPEAKER_REQUEST, SessionForms,
             path='getSessions/{speakerLast}/{speakerFirst}',
@@ -560,14 +598,6 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess, "") for sess in sessions]
         )
-
-
-    # @endpoints.method(CREATE_SESS_POST_REQUEST, SessionForm,
-    #         path='createNewSession/{websafeConferenceKey}',
-    #         http_method='POST', name='createSession')
-    # def createSession(self, request):
-    #     """Create new session."""
-    #     return self._createSessionObject(self, request)
 
 
     @endpoints.method(SESS_GET_REQUEST, SessionForm,

@@ -114,7 +114,18 @@ indexes:
 - kind: Session
   ancestor: yes
   properties:
+  - name: TypeOfSession
+  - name: startTime
+
+- kind: Session
+  ancestor: yes
+  properties:
   - name: spotsAvailable
+
+- kind: Session
+  ancestor: yes
+  properties:
+  - name: startTime
 
 - kind: Session
   ancestor: yes
