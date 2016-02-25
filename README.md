@@ -81,21 +81,21 @@ but given the available session properties, limits could easily be added
     
     createSession
     
-    getAvailableSessions (eg, return sessions with seats still available)**
+    getAvailableSessions (eg, return sessions with seats still available)*
     
     getConferenceSessions
     
     getConferenceSessionsByType (eg, limited to the four defined types)
     
-    getConferenceSessionsExcludingType*
+    getConferenceSessionsExcludingType**
     
     getSession
     
-    getSessionsByDate (eg, return sessions for a date, conference agnostic)**
+    getSessionsByDate (eg, return sessions for a date, conference agnostic)*
     
     getSessionsBySpeaker
  
- - An app engine task is created upon session creation that notifies users
+- An app engine task is created upon session creation that notifies users
  (through an announcement in memcache) if the speaker of the most recent
  session is also giving any other talks at that conference. This end
  result can be seen using:
@@ -111,7 +111,9 @@ be implemented.)
     deleteSessionInWishlist
 
 
-* this endpoint solution has been created to minimize multiple inequality
+* these are two additional queries provided as per project requirements.
+
+** this endpoint solution has been created to minimize multiple inequality
 queries using different properties (only one property may entertain an inequality query on app-engine and this query must also be the first query in
 a series of queries) and relies on the fact that there are a limited number of
 session types (including NON_SPECIFIED). The code provides a solution for selecting by type (in essence, eliminating the exclusion type using python tuples.). An example of a time inequality query is given in the comments as per project suggestions.
@@ -131,7 +133,7 @@ sessions = tuple(x for x in sessionsAll if x not in sessionsLess)
 
 ```
 
-** these are two additional queries provided as per project requirements.
+
 
 ### Speaker entities
 
