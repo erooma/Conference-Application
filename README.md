@@ -111,6 +111,7 @@ be implemented.)
     deleteSessionInWishlist
 
 
+
 * these are two additional queries provided as per project requirements.
 
 ** this endpoint solution has been created to minimize multiple inequality
