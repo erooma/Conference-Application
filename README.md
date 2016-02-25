@@ -1,6 +1,9 @@
 App Engine application for the Udacity Fullstack Web Developer Requirements.
 Project 4.
 
+Andrew Moore
+2016/02/25
+
 ## Products
 - [App Engine][1]
 
@@ -29,7 +32,9 @@ Functions include:
 - A user may see information regarding their log-in profle (don't forget to
 register your t-shirt size!). Authentication is through Oauth2 and Google.
 - The following endpoints are available regarding profiles:
+
     getProfile
+
     saveProfile
 
 ### Conference entities:
@@ -39,15 +44,25 @@ register your t-shirt size!). Authentication is through Oauth2 and Google.
 conferences (and to see your list of registrations).
 - The ability to query conferences regarding month, city and topic.
 - The following endpoints are available regarding conferences:
+
     createConference
+
     getConference
+
     getConferencesCreated (eg, per logged-in user)
+
     queryConferences
+
     registerForConference
+
     unregisterFromConference
+
     updateConference
+
 - An app engine cron job exists notifying users of conferences with fewer than 6 seats available. An announcement is sent to memcache regarding the limited availability. This end result can be manipulated using:
+    
     getAnnouncement
+    
     putAnnouncement
 
 
@@ -63,23 +78,36 @@ information for cross-reference.
 but given the available session properties, limits could easily be added 
 (eg, with regard to location, speaker, or time constraints).
 - The following endpoints are available regarding sessions:
+    
     createSession
+    
     getAvailableSessions (eg, return sessions with seats still available)**
+    
     getConferenceSessions
+    
     getConferenceSessionsByType (eg, limited to the four defined types)
+    
     getConferenceSessionsExcludingType*
+    
     getSession
+    
     getSessionsByDate (eg, return sessions for a date, conference agnostic)**
+    
     getSessionsBySpeaker
+ 
  - An app engine task is created upon session creation that notifies users
  (through an announcement in memcache) if the speaker of the most recent
  session is also giving any other talks at that conference. This end
  result can be seen using:
+    
     getFeaturedSpeaker
+
 - In addition a user may add or remove sessions from their wishlist (this
 does not change the session availibility, although registration could easily
 be implemented.)
+
     addSessionToWishlist
+
     deleteSessionInWishlist
 
 
@@ -115,11 +143,14 @@ still needs to be logged-in to access this data.
 - Many additional properties (eg, phone, email, etc) could be added to increase
 the utility of this entity.
 - The following endpoints are available regarding speakers:
+
     addSpeaker
+
     getSpeaker
 
 
 ### Setup Instructions for personalization
+
 1. Update the value of `application` in `app.yaml` to the app ID you
    have registered in the App Engine admin console and would like to use to host your instance of this sample.
 1. Update the values at the top of `settings.py` to
