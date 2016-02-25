@@ -39,14 +39,16 @@ class SetSpeakerHandler(webapp2.RequestHandler):
     def post(self):
         """Set speaker infomation in memcache"""
 
-        # obtain names of sessions having this speaker
-        q = Session.query(ancestor=ndb.Key(urlsafe=self.request.get('websafeCK')))
-        q = q.filter(Session.speakerLast == self.request.get('speakerLast'))
-        q = q.filter(Session.speakerFirst == self.request.get('speakerFirst'))
+        # obtain names of this speaker
+        speaker = ndb.Key(urlsafe=self.request.get('speakerWSK')).get()
+        fullName = speaker.speakerFirst + " " + speaker.speakerLast
 
+        # obtain names of sessions having this speaker in the conference
+        q = Session.query(ancestor=ndb.Key(urlsafe=self.request.get('websafeCK')))
+        q = q.filter(Session.speakWSK == self.request.get('speakerWSK'))
         result=q.count()
         sessions = q.fetch()
-        fullName = self.request.get('speakerFirst')+" "+ self.request.get('speakerLast')
+
         # determine if speaker also at other sessions
         if result and (result > 1):
                 # If there are other sessions with this speaker,
@@ -62,6 +64,7 @@ class SetSpeakerHandler(webapp2.RequestHandler):
                 memcache.delete(SPEAKER_INFORMATION_KEY)
 
         self.response.set_status(204)
+
         
 
 class SendConfirmationEmailHandler(webapp2.RequestHandler):

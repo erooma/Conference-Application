@@ -36,6 +36,8 @@ from models import ConferenceQueryForms
 from models import Session
 from models import SessionForm
 from models import SessionForms
+from models import Speaker
+from models import SpeakerForm
 from models import TeeShirtSize
 from models import TypeOfSession
 
@@ -97,8 +99,7 @@ CONF_GET_TYPE_REQUEST = endpoints.ResourceContainer(
 
 GET_SPEAKER_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
-    speakerLast=messages.StringField(1),
-    speakerFirst=messages.StringField(2),
+    speakerWSK=messages.StringField(1),
 )
 
 GET_DATE_REQUEST = endpoints.ResourceContainer(
@@ -410,17 +411,28 @@ class ConferenceApi(remote.Service):
         #need both conference name and session name to add a session
         if not request.sessionName:
             raise endpoints.BadRequestException("Session 'name' field required")
-        if not request.websafeCK:
-            raise endpoints.BadRequestException("Conference 'web safe key' field required")
+        request.websafeCK = request.websafeConferenceKey
+
+        # verify that speaker information is correct 
+
+        if request.speakWSK:
+            speaker = ndb.Key(urlsafe=request.speakWSK).get()
+            if not speaker:
+                raise endpoints.BadRequestException("Your speaker information does not match any known speaker.")
+            if request.lastName and request.lastName != speaker.speakerLast:
+                raise endpoints.BadRequestException("Your speaker information does not match the speaker key provided.")
+
 
         # copy SessionForm/ProtoRPC Message into dict
         data = {field.name: getattr(request, field.name) for field in request.all_fields()}
+
         del data['websafeSessionKey']
         del data['websafeCK']
         del data['websafeConferenceKey']
         
         # add default values for those missing (both data model & outbound 
         # Message)
+
         for df in SESSDEFAULTS:
             if data[df] in (None, []):
                 data[df] = SESSDEFAULTS[df]
@@ -461,16 +473,15 @@ class ConferenceApi(remote.Service):
         # create Session & return (modified) SessionForm
         session=Session(**data)
         session.put()
-
-        # add task queue for featuredSpeaker after creating session
-        # if data['speakerLast'] and data['speakerFirst']:
         
-        taskqueue.add(
-                params={'websafeCK': request.websafeCK,
-                'speakerFirst': data['speakerFirst'],
-                'speakerLast': data['speakerLast']},
-                url='/tasks/get_featured_speaker'
-            )
+        # if speaker information, update task queue
+
+        if request.speakWSK:
+            taskqueue.add(
+                    params={'speakerWSK': data['speakWSK'],
+                    'websafeCK': request.websafeCK},
+                    url='/tasks/get_featured_speaker'
+                )
 
         return self._copySessionToForm(session, request.websafeCK)
 
@@ -530,6 +541,7 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(sess, wsk) for sess in sessions]
         )
 
+    
     @endpoints.method(CONF_GET_TYPE_REQUEST, SessionForms,
             path='excludeConferenceSessions/{websafeConferenceKey}/{typeOfSession}',
             http_method='GET', name='getConferenceSessionsExcludingType')
@@ -569,8 +581,9 @@ class ConferenceApi(remote.Service):
         )
 
 
+
     @endpoints.method(GET_SPEAKER_REQUEST, SessionForms,
-            path='getSessions/{speakerLast}/{speakerFirst}',
+            path='getSessionsBySpeaker/{speakerWSK}/',
             http_method='GET', name='getSessionsBySpeaker')
     def getSessionsBySpeaker(self, request):
         """Return sessions having the same speaker across conferences."""
@@ -578,17 +591,15 @@ class ConferenceApi(remote.Service):
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
-        user_id = getUserId(user)
 
-        # create ancestor query for all key matches for this conference
-        first = request.speakerFirst
-        last = request.speakerLast
-        fullname = str(first)+" "+str(last)
+        # link speakerWSK to speaker entity
+        speakerWSK = request.speakerWSK
+        speaker = ndb.Key(urlsafe=speakerWSK).get()
+        fullname = str(speaker.speakerFirst)+" "+str(speaker.speakerLast)
 
-        # query all sessions by speaker names
+        # query all sessions by speakerWSK
         sessions = Session.query()
-        sessions = sessions.filter(Session.speakerLast==last)
-        sessions = sessions.filter(Session.speakerFirst==first)
+        sessions = sessions.filter(Session.speakWSK==speakerWSK)
 
         if not sessions:
             raise endpoints.NotFoundException(
@@ -598,6 +609,8 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(sess, "") for sess in sessions]
         )
+
+      
 
 
     @endpoints.method(SESS_GET_REQUEST, SessionForm,
@@ -619,7 +632,7 @@ class ConferenceApi(remote.Service):
 
 
     @endpoints.method(GET_DATE_REQUEST, SessionForms,
-            path='getSessions/{sessionDate}',
+            path='getSessionsByDate/{sessionDate}',
             http_method='GET', name='getSessionsByDate')
     def getSessionsByDate(self, request):
         """Return sessions having a particular date."""
@@ -740,6 +753,9 @@ class ConferenceApi(remote.Service):
         # get sessions from user Profile
         sess_keys = [ndb.Key(urlsafe=wssk) for wssk in prof.sessionKeysAdded]
         sessions = ndb.get_multi(sess_keys)
+        if not sessions:
+            raise endpoints.NotFoundException(
+                'No sessions are found in your wishlist.')
 
         # return set of SessionForm objects per Session
         return SessionForms(items=[self._copySessionToForm(sess, "")\
@@ -763,6 +779,63 @@ class ConferenceApi(remote.Service):
         """Remove the selected session from user's wishlist."""
         return self._sessionWishlist(request, add=False)
 
+
+# - - - Speaker objects - - - - - - - - - - - - - - - - - - -
+
+
+    def _copySpeakerToForm(self, speak):
+        """Copy relevant fields from Speaker to SpeakerForm."""
+        sp = SpeakerForm()
+        for field in sp.all_fields():
+            setattr(sp, field.name, getattr(speak, field.name))
+        sp.check_initialized()
+        return sp
+
+
+    def _addSpeakerObject(self, request):
+        """Create Speaker object, returning SpeakerForm/request."""
+        # preload necessary data items
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+
+        if not request.speakerFirst or not request.speakerLast:
+            raise endpoints.BadRequestException("Speaker 'name' fields are required")
+
+        # copy SpeakerForm/ProtoRPC Message into dict
+        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
+
+        # creation of Speaker with key & return (modified) SpeakerForm
+        speaker_key = Speaker(**data).put()
+        wsk = speaker_key.urlsafe()
+
+        speaker = speaker_key.get()
+        speaker.speakerWSK = wsk
+        speaker.put()
+        
+        return request
+
+
+    @endpoints.method(SpeakerForm, SpeakerForm, path='speaker',
+            http_method='POST', name='addSpeaker')
+    def addSpeaker(self, request):
+        """Add new speaker."""
+        return self._addSpeakerObject(request)
+
+
+    
+    @endpoints.method(GET_SPEAKER_REQUEST, SpeakerForm,
+            path='speaker/{speakerWSK}',
+            http_method='GET', name='getSpeaker')
+    def getSpeaker(self, request):
+        """Return requested session (by speakerWSK)."""
+        # get Speaker object from request; bail if not found
+        speak = ndb.Key(urlsafe=request.speakerWSK).get()
+        if not speak:
+            raise endpoints.NotFoundException(
+                'No speaker found with key: %s' % request.speakerWSK)
+        # return SpeakerForm
+        return self._copySpeakerToForm(speak)      
 
 
 # - - - Profile objects - - - - - - - - - - - - - - - - - - -

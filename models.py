@@ -90,8 +90,8 @@ class Session(ndb.Model):
     sessionName     = ndb.StringProperty(required=True)
     conferenceName  = ndb.StringProperty()
     highlights      = ndb.StringProperty()
-    speakerLast     = ndb.StringProperty()
-    speakerFirst    = ndb.StringProperty()
+    speakWSK        = ndb.StringProperty()
+    lastName        = ndb.StringProperty()
     duration        = ndb.IntegerProperty(repeated=True)
     typeOfSession   = ndb.StringProperty("TypeOfSession", default='NOT_SPECIFIED')
     location        = ndb.StringProperty()
@@ -104,10 +104,10 @@ class Session(ndb.Model):
 class SessionForm(messages.Message):
     """Session -- Session form outbound message"""
     sessionName     = messages.StringField(1)
-    conferenceName   = messages.StringField(2)
+    conferenceName  = messages.StringField(2)
     highlights      = messages.StringField(3)
-    speakerLast     = messages.StringField(4)
-    speakerFirst    = messages.StringField(5)
+    speakWSK        = messages.StringField(4)
+    lastName        = messages.StringField(5)
     duration        = messages.IntegerField(6, variant=messages.Variant.INT32, repeated=True)
     typeOfSession   = messages.EnumField('TypeOfSession', 7, default='NOT_SPECIFIED')
     location        = messages.StringField(8)
@@ -163,13 +163,14 @@ class ConferenceQueryForms(messages.Message):
     filters = messages.MessageField(ConferenceQueryForm, 1, repeated=True)
 
 
-# class Speaker(ndb.Model)
-#     """Speaker -- speaker object"""
-#     speakerLast     = ndb.StringProperty()
-#     speakerFirst    = ndb.StringProperty()
+class Speaker(ndb.Model):
+    """Speaker -- speaker object"""
+    speakerLast     = ndb.StringProperty()
+    speakerFirst    = ndb.StringProperty()
+    speakerWSK      = ndb.StringProperty()
 
-
-# class SpeakerForm(message.Message):
-#     """SpeakerForm -- speaker form"""
-#     speakerLast     = messages.StringField(1)
-#     speakerFirst    = messages.StringField(2)
+class SpeakerForm(messages.Message):
+    """SpeakerForm -- speaker form"""
+    speakerLast     = messages.StringField(1)
+    speakerFirst    = messages.StringField(2)
+    speakerWSK      = messages.StringField(3)
