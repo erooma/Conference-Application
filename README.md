@@ -81,17 +81,19 @@ but given the available session properties, limits could easily be added
     
     createSession
     
-    getAvailableSessions (eg, return sessions with seats still available)*
+    getAvailableSessions (eg, return sessions with seats still available)<sup>1</sup>
     
+    getSessionsByDate (eg, return sessions for a date, conference agnostic)<sup>1</sup>
+
     getConferenceSessions
     
     getConferenceSessionsByType (eg, limited to the four defined types)
     
-    getConferenceSessionsExcludingType**
+    getConferenceSessionsExcludingType<sup>2</sup>
     
     getSession
     
-    getSessionsByDate (eg, return sessions for a date, conference agnostic)*
+
     
     getSessionsBySpeaker
  
@@ -112,9 +114,9 @@ be implemented.)
 
 
 
-* these are two additional queries provided as per project requirements.
+ 1 these are two additional queries provided as per project requirements.
 
-** this endpoint solution has been created to minimize multiple inequality
+ 2 this endpoint solution has been created to minimize multiple inequality
 queries using different properties (only one property may entertain an inequality query on app-engine and this query must also be the first query in
 a series of queries) and relies on the fact that there are a limited number of
 session types (including NON_SPECIFIED). The code provides a solution for selecting by type (in essence, eliminating the exclusion type using python tuples.). An example of a time inequality query is given in the comments as per project suggestions.
